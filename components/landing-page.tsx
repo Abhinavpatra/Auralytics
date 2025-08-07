@@ -44,7 +44,7 @@ export function LandingPage() {
         {/* Header */}
         <div className="flex justify-between items-center mb-16">
           <div className="neobrutalist-card p-4 bg-neo-primary">
-            <h1 className="text-2xl font-black text-black">AURA CARD AI</h1>
+            <h1 className="text-2xl font-black text-black dark:text-yellow-400">AURA CARD AI</h1>
           </div>
           <ThemeToggle />
         </div>
@@ -52,7 +52,7 @@ export function LandingPage() {
         {/* Hero Section */}
         <div className="text-center mb-20">
           <div className="bounce-in">
-            <div className="inline-block neobrutalist-card p-8 mb-8 bg-white dark:bg-black">
+            <div className="inline-block neobrutalist-card p-8 mb-8 bg-white ">
               <h1 className="text-6xl md:text-8xl font-black mb-4">
                 <span className="text-neo-primary">QUANTIFY</span>
                 <br />
@@ -66,7 +66,7 @@ export function LandingPage() {
           </div>
           
           <div className="neobrutalist-card p-6 mb-8 bg-neo-warning max-w-3xl mx-auto">
-            <p className="text-xl md:text-2xl font-bold text-black">
+            <p className="text-xl md:text-2xl font-bold text-black dark:text-red-400">
               AI-POWERED SOCIAL MEDIA ANALYSIS THAT GENERATES YOUR UNIQUE AURA SCORE 
               AND SHAREABLE DIGITAL PERSONA CARDS
             </p>
@@ -88,28 +88,28 @@ export function LandingPage() {
               icon: Zap,
               title: 'AURA SCORE',
               description: 'GET A 0-100 SCORE THAT CAPTURES YOUR DIGITAL VIBE',
-              bgColor: 'bg-neo-warning',
-              textColor: 'text-black'
+              bgColor: 'bg-neo-warning dark:bg-neo-warning',
+              textColor: 'text-white'
             },
             {
               icon: BarChart3,
               title: 'DEEP ANALYTICS',
               description: 'TRACK SENTIMENT, TOPICS, AND ENGAGEMENT OVER TIME',
-              bgColor: 'bg-neo-accent',
+              bgColor: 'bg-neo-accent dark:bg-neo-accent',
               textColor: 'text-white'
             },
             {
               icon: TrendingUp,
               title: 'TREND ANALYSIS',
               description: 'SEE HOW YOUR DIGITAL PERSONA EVOLVES',
-              bgColor: 'bg-neo-purple',
+              bgColor: 'bg-neo-purple dark:bg-neo-purple',
               textColor: 'text-white'
             },
             {
               icon: Share2,
               title: 'SHAREABLE CARDS',
               description: 'GENERATE VIRAL AURA CARDS TO SHARE YOUR SCORE',
-              bgColor: 'bg-neo-secondary',
+              bgColor: 'bg-neo-secondary dark:bg-neo-secondary',
               textColor: 'text-white'
             }
           ].map((feature, index) => (
@@ -124,18 +124,18 @@ export function LandingPage() {
         {/* Tier System */}
         <div className="text-center mb-20">
           <div className="neobrutalist-card p-6 mb-8 bg-neo-primary inline-block">
-            <h2 className="text-4xl font-black text-black">AURA TIER SYSTEM</h2>
+            <h2 className="text-4xl font-black text-black dark:text-white">AURA TIER SYSTEM</h2>
           </div>
           
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
             {[
-              { range: '0-20', name: 'NOOB', bgColor: 'bg-gray-400', textColor: 'text-black' },
-              { range: '21-40', name: 'UPCOMING SAGE', bgColor: 'bg-neo-accent', textColor: 'text-white' },
-              { range: '41-60', name: 'AURA FARMER', bgColor: 'bg-neo-primary', textColor: 'text-black' },
-              { range: '61-80', name: 'OCCASIONAL LEGEND', bgColor: 'bg-neo-warning', textColor: 'text-black' },
-              { range: '81-90', name: 'AURA FARMER', bgColor: 'bg-orange-500', textColor: 'text-white' },
-              { range: '91-95', name: 'AMRIT SIR', bgColor: 'bg-neo-secondary', textColor: 'text-white' },
-              { range: '96-100', name: 'AURA GOD', bgColor: 'bg-neo-purple', textColor: 'text-white' },
+              { range: '0-20', name: 'NOOB', bgColor: 'bg-gray-400 dark:bg-gray-400', textColor: 'text-black' },
+              { range: '21-40', name: 'UPCOMING SAGE', bgColor: 'bg-neo-accent dark:bg-neo-accent', textColor: 'text-white' },
+              { range: '41-60', name: 'AURA FARMER', bgColor: 'bg-neo-primary dark:bg-neo-primary', textColor: 'text-black' },
+              { range: '61-80', name: 'OCCASIONAL LEGEND', bgColor: 'bg-neo-warning dark:bg-neo-warning', textColor: 'text-black' },
+              { range: '81-90', name: 'AURA FARMER', bgColor: 'bg-orange-500 dark:bg-orange-500', textColor: 'text-white' },
+              { range: '91-95', name: 'AMRIT SIR', bgColor: 'bg-neo-secondary dark:bg-neo-secondary', textColor: 'text-white' },
+              { range: '96-100', name: 'AURA GOD', bgColor: 'bg-neo-purple dark:bg-neo-purple', textColor: 'text-white' },
             ].map((tier, index) => (
               <Card key={index} className={`neobrutalist-card p-4 ${tier.bgColor} text-center hover:scale-110 transition-transform duration-300`}>
                 <div className={`text-lg font-black ${tier.textColor}`}>{tier.range}</div>
@@ -148,9 +148,9 @@ export function LandingPage() {
         {/* Stats Section */}
         <div className="grid md:grid-cols-3 gap-8 mb-20">
           {[
-            { icon: Users, number: '10K+', label: 'USERS ANALYZED', bgColor: 'bg-neo-primary' },
-            { icon: Sparkles, number: '50K+', label: 'AURA CARDS GENERATED', bgColor: 'bg-neo-secondary' },
-            { icon: Target, number: '95%', label: 'ACCURACY RATE', bgColor: 'bg-neo-accent' }
+            { icon: Users, number: '10K+', label: 'USERS ANALYZED', bgColor: 'bg-neo-primary dark:bg-neo-primary' },
+            { icon: Sparkles, number: '50K+', label: 'AURA CARDS GENERATED', bgColor: 'bg-neo-secondary dark:bg-neo-secondary' },
+            { icon: Target, number: '95%', label: 'ACCURACY RATE', bgColor: 'bg-neo-accent dark:bg-neo-accent' }
           ].map((stat, index) => (
             <div key={index} className={`neobrutalist-card p-8 ${stat.bgColor} text-center`}>
               <stat.icon className="h-12 w-12 mx-auto mb-4 text-black" />

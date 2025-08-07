@@ -15,23 +15,22 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Aura Card AI - Quantify Your Digital Persona',
-  description: 'AI-powered social media analysis that generates your unique Aura Score and shareable digital persona cards.',
+  title: 'Auralytics - Quantify Your Digital Journey',
+  description: 'Social media analysis that generates your unique Aura Score and shareable digital persona cards.',
   keywords: ['social media', 'AI analysis', 'digital persona', 'aura score', 'twitter analysis'],
-  authors: [{ name: 'Aura Card AI' }],
+  authors: [{ name: 'Abhinav Patra' }],
   openGraph: {
-    title: 'Aura Card AI - Quantify Your Digital Persona',
+    title: 'Auralytics - Quantify Your Digital Journey',
     description: 'Discover your digital aura with AI-powered social media analysis',
     type: 'website',
     images: ['/og-image.png'],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Aura Card AI',
-    description: 'Quantify your digital persona with AI',
+    title: 'Auralytics',
+    description: 'Quantify your digital history with AI',
     images: ['/og-image.png'],
-  },
-    generator: 'v0.dev'
+  }
 }
 
 export default function RootLayout({
