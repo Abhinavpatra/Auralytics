@@ -22,7 +22,7 @@ export function LandingPage() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="neobrutalist-card p-8">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-black dark:border-white border-t-transparent mx-auto"></div>
+          <div className="animate-spin dark:border-t-black   rounded-full h-16 w-16 border-4 border-black dark:border-white border-t-transparent mx-auto dark:"></div>
           <p className="text-center mt-4 font-bold">LOADING...</p>
         </div>
       </div>
