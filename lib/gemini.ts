@@ -66,6 +66,8 @@ export interface AuraAnalysis {
     website: string
     joinDate: string
     isVerified: boolean
+    followersCount?: number
+    followingCount?: number
   }
 }
 
