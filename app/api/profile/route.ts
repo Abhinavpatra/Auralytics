@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { TwitterAPI } from '@/lib/twitter'
 
+// Returns only accurate fields from session; optionally enriches with public_metrics
+// via app bearer token if available. Never fabricates values.
 export async function GET(_req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -12,7 +14,6 @@ export async function GET(_req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Base payload: only include what we actually have in the session.
     const base: Record<string, any> = {}
     if (user.id) base.id = user.id
     if (user.name) base.name = user.name
@@ -27,33 +28,46 @@ export async function GET(_req: NextRequest) {
     if (user.joinDate) base.joinDate = user.joinDate
     if (user.profileImage) base.profileImage = user.profileImage
 
-    // Try to enrich with accurate counts via app bearer token (optional).
-    // If we can't, we just return the base session data—no placeholders.
     const bearer = process.env.TWITTER_BEARER_TOKEN
     if (bearer && user?.username) {
       try {
         const twitter = new TwitterAPI(bearer)
-        const profile = await twitter.getUserByUsername(user.username)
-        // Only attach values that we know for sure.
-        if (profile?.public_metrics) {
-          const { followers_count, following_count, tweet_count } = profile.public_metrics
-          if (typeof followers_count === 'number') base.followersCount = followers_count
-          if (typeof following_count === 'number') base.followingCount = following_count
-          if (typeof tweet_count === 'number') base.tweetCount = tweet_count
+        const profile = (await twitter.getUserByUsername(user.username)) as any
+
+        const pm = profile?.public_metrics
+        if (pm && typeof pm.followers_count === 'number') {
+          base.followersCount = pm.followers_count
         }
-        if (typeof profile?.verified === 'boolean') base.isVerified = profile.verified
-        if (profile?.profile_image_url) base.profileImage = profile.profile_image_url
-        if (profile?.created_at) base.joinDate = profile.created_at
-        if (profile?.description) base.bio = profile.description
+        if (pm && typeof pm.following_count === 'number') {
+          base.followingCount = pm.following_count
+        }
+        if (pm && typeof pm.tweet_count === 'number') {
+          base.tweetCount = pm.tweet_count
+        }
+        if (typeof profile?.verified === 'boolean') {
+          base.isVerified = profile.verified
+        }
+        if (typeof profile?.description === 'string' && profile.description) {
+          base.bio = profile.description
+        }
+        if (typeof profile?.created_at === 'string' && profile.created_at) {
+          base.joinDate = profile.created_at
+        }
+        if (typeof profile?.profile_image_url === 'string' && profile.profile_image_url) {
+          base.profileImage = profile.profile_image_url
+        }
       } catch {
-        // Swallow errors and just return base session data
+        // Ignore enrichment failures; return whatever the session has
       }
     }
 
     return NextResponse.json(base, { status: 200 })
   } catch (err) {
     return NextResponse.json(
-      { error: 'Failed to load profile', details: err instanceof Error ? err.message : 'Unknown error' },
+      {
+        error: 'Failed to load profile',
+        details: err instanceof Error ? err.message : 'Unknown error',
+      },
       { status: 200 }
     )
   }

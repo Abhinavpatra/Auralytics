@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const userId = session.user.id || session.user.email
+    const userId = (session.user as any).id || session.user.email
     
     if (!userId) {
       return NextResponse.json({ error: 'User ID not found' }, { status: 400 })
