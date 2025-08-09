@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { analyzeUserTweets, type Tweet as ModelTweet } from "@/lib/gemini"
 import { scrapeUserTweets, type Tweet as ScrapedTweet } from "@/lib/scraper"
+import { TwitterAPI } from "@/lib/twitter"
+import { isUserVerifiedPuppeteer, scrapeUserTweetsPuppeteer } from "@/lib/scraper-puppeteer"
 
 // -------------------- Types --------------------
 
@@ -183,6 +185,27 @@ function mapScrapedToModelTweets(scraped: ScrapedTweet[]): ModelTweet[] {
   }))
 }
 
+async function resolveVerified(username: string): Promise<boolean> {
+  // 1) Try official API if token exists
+  if (process.env.TWITTER_BEARER_TOKEN) {
+    try {
+      const api = new TwitterAPI(process.env.TWITTER_BEARER_TOKEN)
+      const user = await api.getUserByUsername(username)
+      if (typeof user?.verified === "boolean") {
+        return user.verified
+      }
+    } catch {
+      // fall through
+    }
+  }
+  // 2) Fallback to Puppeteer DOM check
+  try {
+    return await isUserVerifiedPuppeteer(username)
+  } catch {
+    return false
+  }
+}
+
 // -------------------- Route Handlers --------------------
 
 export async function POST(request: NextRequest) {
@@ -191,18 +214,30 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions).catch(() => null)
     const sessionUser = (session?.user as any) || undefined
     const username: string | null = (sessionUser?.username as string | undefined) || null
+    const sessionVerified: boolean | undefined =
+      typeof sessionUser?.isVerified === "boolean" ? sessionUser.isVerified : undefined
+    const resolvedVerified = username ? (sessionVerified ?? (await resolveVerified(username))) : false
 
     const body = (await request.json().catch(() => ({}))) as AnalyzeRequest
     const maxTweets = clampInt(Number(body?.maxTweets ?? 30), 1, 300)
     const includeReplies = Boolean(body?.includeReplies ?? false)
     const includeRetweets = Boolean(body?.includeRetweets ?? true)
 
-    // If we have a username, try scraper; else proceed with empty tweets.
     let tweets: ScrapedTweet[] = []
     if (username) {
       try {
-        tweets = await scrapeUserTweets(username, { maxTweets, includeReplies, includeRetweets })
+        if (resolvedVerified) {
+          // Prefer Puppeteer for verified profiles
+          tweets = await scrapeUserTweetsPuppeteer(username, { maxTweets, includeReplies, includeRetweets })
+          if (!tweets.length) {
+            // Fallback to lightweight scraper if Puppeteer finds nothing
+            tweets = await scrapeUserTweets(username, { maxTweets, includeReplies, includeRetweets })
+          }
+        } else {
+          tweets = await scrapeUserTweets(username, { maxTweets, includeReplies, includeRetweets })
+        }
       } catch {
+        // Final fallback: no tweets
         tweets = []
       }
     }
@@ -212,7 +247,7 @@ export async function POST(request: NextRequest) {
       ...analysisRaw,
       userData: {
         username: username,
-        isVerified: (sessionUser?.isVerified as boolean | undefined) ?? undefined,
+        isVerified: resolvedVerified,
       },
     })
 
