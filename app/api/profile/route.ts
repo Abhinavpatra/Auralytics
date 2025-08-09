@@ -1,74 +1,63 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { TwitterAPI } from '@/lib/twitter'
+import { NextResponse } from "next/server"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+import { TwitterAPI } from "@/lib/twitter"
 
-// Returns only accurate fields from session; optionally enriches with public_metrics
-// via app bearer token if available. Never fabricates values.
-export async function GET(_req: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions)
-    const user = (session?.user as any) || undefined
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const base: Record<string, any> = {}
-    if (user.id) base.id = user.id
-    if (user.name) base.name = user.name
-    if (user.username) base.username = user.username
-    if (user.email) base.email = user.email
-    if (user.image) base.image = user.image
-    if (typeof user.isVerified === 'boolean') base.isVerified = user.isVerified
-    if (typeof user.tweetCount === 'number') base.tweetCount = user.tweetCount
-    if (user.bio) base.bio = user.bio
-    if (user.location) base.location = user.location
-    if (user.website) base.website = user.website
-    if (user.joinDate) base.joinDate = user.joinDate
-    if (user.profileImage) base.profileImage = user.profileImage
+    const u = session.user as any
+    const username: string | undefined = u.username
+    const baseProfile = {
+      name: u.name ?? null,
+      username: username ?? null,
+      image: u.image ?? null,
+      isVerified: Boolean(u.isVerified ?? false),
+      bio: typeof u.bio === "string" ? u.bio : null,
+      location: typeof u.location === "string" ? u.location : null,
+      website: typeof u.website === "string" ? u.website : null,
+      joinDate: typeof u.joinDate === "string" ? u.joinDate : null,
+      tweetCount: typeof u.tweetCount === "number" ? u.tweetCount : null,
+      profileImage: typeof u.profileImage === "string" ? u.profileImage : null,
+    }
 
-    const bearer = process.env.TWITTER_BEARER_TOKEN
-    if (bearer && user?.username) {
+    // Optionally enrich with accurate counts from Twitter API if token exists
+    if (username && process.env.TWITTER_BEARER_TOKEN) {
       try {
-        const twitter = new TwitterAPI(bearer)
-        const profile = (await twitter.getUserByUsername(user.username)) as any
-
-        const pm = profile?.public_metrics
-        if (pm && typeof pm.followers_count === 'number') {
-          base.followersCount = pm.followers_count
-        }
-        if (pm && typeof pm.following_count === 'number') {
-          base.followingCount = pm.following_count
-        }
-        if (pm && typeof pm.tweet_count === 'number') {
-          base.tweetCount = pm.tweet_count
-        }
-        if (typeof profile?.verified === 'boolean') {
-          base.isVerified = profile.verified
-        }
-        if (typeof profile?.description === 'string' && profile.description) {
-          base.bio = profile.description
-        }
-        if (typeof profile?.created_at === 'string' && profile.created_at) {
-          base.joinDate = profile.created_at
-        }
-        if (typeof profile?.profile_image_url === 'string' && profile.profile_image_url) {
-          base.profileImage = profile.profile_image_url
-        }
+        const api = new TwitterAPI(process.env.TWITTER_BEARER_TOKEN)
+        const user = await api.getUserByUsername(username)
+        return NextResponse.json({
+          ...baseProfile,
+          name: baseProfile.name ?? user.name ?? null,
+          username: username,
+          image: baseProfile.image ?? user.profile_image_url ?? null,
+          isVerified: typeof user.verified === "boolean" ? user.verified : baseProfile.isVerified,
+          tweetCount:
+            typeof user.public_metrics?.tweet_count === "number"
+              ? user.public_metrics.tweet_count
+              : baseProfile.tweetCount,
+          followersCount:
+            typeof user.public_metrics?.followers_count === "number" ? user.public_metrics.followers_count : undefined,
+          followingCount:
+            typeof user.public_metrics?.following_count === "number" ? user.public_metrics.following_count : undefined,
+          bio: baseProfile.bio ?? user.description ?? null,
+          joinDate: baseProfile.joinDate ?? user.created_at ?? null,
+          profileImage: baseProfile.profileImage ?? user.profile_image_url ?? null,
+        })
       } catch {
-        // Ignore enrichment failures; return whatever the session has
+        // If enrichment fails, return base profile only
       }
     }
 
-    return NextResponse.json(base, { status: 200 })
-  } catch (err) {
+    return NextResponse.json(baseProfile)
+  } catch (error) {
     return NextResponse.json(
-      {
-        error: 'Failed to load profile',
-        details: err instanceof Error ? err.message : 'Unknown error',
-      },
-      { status: 200 }
+      { error: "profile handler error", details: error instanceof Error ? error.message : "Unknown error" },
+      { status: 500 },
     )
   }
 }
