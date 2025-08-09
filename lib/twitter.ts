@@ -2,23 +2,17 @@ interface TwitterUser {
   id: string
   username: string
   name: string
-  description?: string
-  verified?: boolean
   public_metrics: {
-    tweet_count: number
     followers_count: number
     following_count: number
-    listed_count?: number
+    tweet_count: number
   }
-  created_at?: string
-  profile_image_url?: string
 }
 
 interface TwitterTweet {
   id: string
   text: string
   created_at: string
-  in_reply_to_user_id?: string
   public_metrics: {
     like_count: number
     retweet_count: number
@@ -37,13 +31,12 @@ export class TwitterAPI {
 
   async getUserByUsername(username: string): Promise<TwitterUser> {
     const response = await fetch(
-      `https://api.twitter.com/2/users/by/username/${username}?user.fields=public_metrics,created_at,profile_image_url,description,verified`,
+      `https://api.twitter.com/2/users/by/username/${username}?user.fields=public_metrics`,
       {
         headers: {
-          Authorization: `Bearer ${this.bearerToken}`,
+          'Authorization': `Bearer ${this.bearerToken}`,
         },
-        cache: "no-store",
-      },
+      }
     )
 
     if (!response.ok) {
@@ -51,19 +44,17 @@ export class TwitterAPI {
     }
 
     const data = await response.json()
-    return data.data as TwitterUser
+    return data.data
   }
 
-  async getUserTweets(userId: string, maxResults = 100): Promise<TwitterTweet[]> {
-    const limit = Math.min(Math.max(5, maxResults), 100)
+  async getUserTweets(userId: string, maxResults: number = 100): Promise<TwitterTweet[]> {
     const response = await fetch(
-      `https://api.twitter.com/2/users/${userId}/tweets?max_results=${limit}&tweet.fields=created_at,public_metrics,in_reply_to_user_id`,
+      `https://api.twitter.com/2/users/${userId}/tweets?max_results=${maxResults}&tweet.fields=created_at,public_metrics&exclude=retweets,replies`,
       {
         headers: {
-          Authorization: `Bearer ${this.bearerToken}`,
+          'Authorization': `Bearer ${this.bearerToken}`,
         },
-        cache: "no-store",
-      },
+      }
     )
 
     if (!response.ok) {
@@ -71,8 +62,6 @@ export class TwitterAPI {
     }
 
     const data = await response.json()
-    return (data.data as TwitterTweet[]) || []
+    return data.data || []
   }
 }
-
-export type { TwitterUser, TwitterTweet }

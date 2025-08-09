@@ -76,14 +76,7 @@ const config = {
         '5': '5px',
         '6': '6px',
       },
-      boxShadow: {
-        'neobrutalist': '8px 8px 0px 0px rgb(0 0 0)',
-        'neobrutalist-hover': '12px 12px 0px 0px rgb(0 0 0)',
-        'neobrutalist-active': '4px 4px 0px 0px rgb(0 0 0)',
-        'neobrutalist-white': '8px 8px 0px 0px rgb(255 255 255)',
-        'neobrutalist-white-hover': '12px 12px 0px 0px rgb(255 255 255)',
-        'neobrutalist-white-active': '4px 4px 0px 0px rgb(255 255 255)',
-      },
+      // Removed custom boxShadow definitions as they are now directly in globals.css
       keyframes: {
         "accordion-down": {
           from: { height: "0" },
@@ -114,7 +107,7 @@ const config = {
             boxShadow: "0 0 20px rgb(var(--neo-primary))",
           },
           "50%": {
-            boxShadow: "0 0 40px rgb(var(--neo-primary)), 0 0 60px rgb(var(--neo-primary))",
+            box-shadow: "0 0 40px rgb(var(--neo-primary)), 0 0 60px rgb(var(--neo-primary))",
           },
         },
       },

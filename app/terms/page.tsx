@@ -1,4 +1,4 @@
-// pages/terms.js
+
 
 export default function TermsOfService() {
   return (
