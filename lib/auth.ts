@@ -12,7 +12,7 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, account, profile }) {
       if (account && profile) {
-        token.username = (profile as any).username || 'demo_user'
+        token.username = (profile as any).username || ''
         token.followers = (profile as any).public_metrics?.followers_count || Math.floor(Math.random() * 5000)
       }
       return token
