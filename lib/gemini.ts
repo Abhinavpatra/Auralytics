@@ -1,16 +1,13 @@
 /**
- * Gemini-backed analysis helper using the AI SDK.
- * - Uses Google Gemini via the AI SDK to generate a structured analysis from user tweets.
- * - Falls back to a safe local heuristic if the AI call fails or returns invalid JSON.
+ * Gemini-backed analysis via the AI SDK.
+ * - Uses @ai-sdk/google provider with generateText().
+ * - Falls back to a heuristic analysis so we never return null.
  *
- * Environment:
- *   - Set GOOGLE_GEMINI_API_KEY on the server for model access.
- *
- * Server-only.
+ * Server-only. Requires GOOGLE_GEMINI_API_KEY set in the environment. [^4]
  */
 
 import { generateText } from "ai"
-import { google } from "@ai-sdk/google" // Gemini provider via AI SDK [^2]
+import { google } from "@ai-sdk/google" // [^4]
 
 export type Tweet = {
   id: string
@@ -98,18 +95,13 @@ function heuristicAnalysis(tweets: Tweet[], username: string | null): Analysis {
       avgLikes: Math.floor(likeAvg),
       avgRetweets: Math.floor(rtAvg),
       avgReplies: Math.floor(replyAvg),
-      totalEngagement: Math.floor((likeAvg + rtAvg + replyAvg) * tweets.length),
+      totalEngagement: Math.floor((likeAvg + rtAvg + replyAvg) * Math.max(1, tweets.length)),
       engagementRate,
     },
     writingStyle: { tone: "casual", formality: 0.4, emotiveness: 0.6, clarity: 0.75 },
     timePatterns: { mostActiveHour: 14, mostActiveDay: "Tuesday", postingFrequency: 2 },
-    viralPotential: {
-      score: Math.max(0, Math.min(100, auraScore + 5)),
-      factors: ["Engagement consistency", "Relevant topics"],
-    },
-    summary: `A concise, engagement-driven profile for ${
-      username ? "@" + username : "this account"
-    } with steady audience interactions.`,
+    viralPotential: { score: Math.max(0, Math.min(100, auraScore + 5)), factors: ["Consistency", "Clarity"] },
+    summary: `A concise, engagement-driven profile for ${username ? "@" + username : "this account"} with steady audience interactions.`,
   }
 }
 
@@ -133,12 +125,12 @@ function buildTweetsContext(tweets: Tweet[]) {
 }
 
 /**
- * Analyze tweets with Gemini via AI SDK. Falls back to a heuristic if needed.
+ * Analyze tweets with Gemini via AI SDK; fallback to heuristic to guarantee success. [^4]
  */
 export async function analyzeUserTweets(tweets: Tweet[], username: string | null): Promise<Analysis> {
   try {
     const stats = buildTweetsContext(tweets)
-    const model = google("gemini-1.5-pro") // Uses GOOGLE_GEMINI_API_KEY [^2]
+    const model = google("gemini-1.5-pro")
 
     const system = [
       "You are an expert social media analyst.",
@@ -209,7 +201,7 @@ export async function analyzeUserTweets(tweets: Tweet[], username: string | null
       system,
       prompt,
       temperature: 0.3,
-    }) // [^2]
+    })
 
     const raw = text
       .trim()
@@ -217,11 +209,8 @@ export async function analyzeUserTweets(tweets: Tweet[], username: string | null
       .replace(/```$/i, "")
     const parsed = JSON.parse(raw)
 
-    const likeAvg = stats.likeAvg
-    const rtAvg = stats.rtAvg
-    const replyAvg = stats.replyAvg
-    const totalEngagement = likeAvg + rtAvg + replyAvg
-    const engagementRate = Math.min(1, totalEngagement / 100)
+    const totalEngagementAvg = stats.likeAvg + stats.rtAvg + stats.replyAvg
+    const defaultEngagementRate = Math.min(1, totalEngagementAvg / 100)
 
     return {
       auraScore:
@@ -261,14 +250,14 @@ export async function analyzeUserTweets(tweets: Tweet[], username: string | null
               { name: "Current Events", frequency: 0.2, sentiment: 0.5 },
             ],
       engagement: {
-        avgLikes: Math.max(0, Math.floor(parsed?.engagement?.avgLikes ?? likeAvg)),
-        avgRetweets: Math.max(0, Math.floor(parsed?.engagement?.avgRetweets ?? rtAvg)),
-        avgReplies: Math.max(0, Math.floor(parsed?.engagement?.avgReplies ?? replyAvg)),
+        avgLikes: Math.max(0, Math.floor(parsed?.engagement?.avgLikes ?? stats.likeAvg)),
+        avgRetweets: Math.max(0, Math.floor(parsed?.engagement?.avgRetweets ?? stats.rtAvg)),
+        avgReplies: Math.max(0, Math.floor(parsed?.engagement?.avgReplies ?? stats.replyAvg)),
         totalEngagement: Math.max(
           0,
-          Math.floor(parsed?.engagement?.totalEngagement ?? totalEngagement * Math.max(1, stats.count)),
+          Math.floor(parsed?.engagement?.totalEngagement ?? totalEngagementAvg * Math.max(1, stats.count)),
         ),
-        engagementRate: clamp01(parsed?.engagement?.engagementRate ?? engagementRate),
+        engagementRate: clamp01(parsed?.engagement?.engagementRate ?? defaultEngagementRate),
       },
       writingStyle: {
         tone: typeof parsed?.writingStyle?.tone === "string" ? parsed.writingStyle.tone : "casual",

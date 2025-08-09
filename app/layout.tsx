@@ -30,8 +30,7 @@ export const metadata: Metadata = {
     title: 'Auralytics',
     description: 'Quantify your digital history with AI',
     images: ['/og-image.png'],
-  },
-    generator: 'v0.dev'
+  }
 }
 
 export default function RootLayout({

@@ -1,14 +1,43 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { analyzeUserTweets, type Tweet as AnalyzedTweet } from "@/lib/gemini"
+import { analyzeUserTweets, type Tweet as ModelTweet } from "@/lib/gemini"
 import { scrapeUserTweets, type Tweet as ScrapedTweet } from "@/lib/scraper"
+
+// -------------------- Types --------------------
 
 type AnalyzeRequest = {
   maxTweets?: number
   includeReplies?: boolean
   includeRetweets?: boolean
 }
+
+type AnalysisWrapper = {
+  mode: "premium" | "basic"
+  username: string | null
+  reason?: string
+  options: {
+    maxTweets: number
+    includeReplies: boolean
+    includeRetweets: boolean
+  }
+  tweetSampleCount: number
+  analysis: any
+  tweets: Array<{
+    id: string
+    text: string
+    created_at?: string
+    public_metrics?: {
+      like_count?: number
+      retweet_count?: number
+      reply_count?: number
+      quote_count?: number
+    }
+    referenced_tweets?: Array<{ type: string; id: string }>
+  }>
+}
+
+// -------------------- Helpers --------------------
 
 function clamp01(n: number) {
   return Math.max(0, Math.min(1, n))
@@ -25,7 +54,6 @@ function getTierName(score: number): string {
   if (score >= 21) return "Upcoming Sage"
   return "Noob"
 }
-
 function generateTimeSeriesData() {
   const data: Array<{ date: string; sentiment: number; engagement: number; auraScore: number }> = []
   const now = new Date()
@@ -42,11 +70,10 @@ function generateTimeSeriesData() {
   }
   return data
 }
-
 function ensureAnalysisCompleteness(analysis: any) {
-  const safeNumber = (v: any, d = 0) => (typeof v === "number" && Number.isFinite(v) ? v : d)
-  const safeString = (v: any, d = "") => (typeof v === "string" ? v : d)
-  const safeArray = (v: any, d: any[] = []) => (Array.isArray(v) && v.length ? v : d)
+  const safeNumber = (v: unknown, d = 0) => (typeof v === "number" && Number.isFinite(v) ? v : d)
+  const safeString = (v: unknown, d = "") => (typeof v === "string" ? v : d)
+  const safeArray = (v: unknown, d: any[] = []) => (Array.isArray(v) && (v as any[]).length ? (v as any[]) : d)
 
   const auraScore = Math.max(0, Math.min(100, Math.floor(safeNumber(analysis?.auraScore, 50))))
 
@@ -112,7 +139,7 @@ function ensureAnalysisCompleteness(analysis: any) {
   return normalized
 }
 
-function mapScrapedToAnalyzerTweets(scraped: ScrapedTweet[]): AnalyzedTweet[] {
+function mapScrapedToModelTweets(scraped: ScrapedTweet[]): ModelTweet[] {
   return scraped.map((t) => ({
     id: t.id,
     text: t.text,
@@ -122,14 +149,13 @@ function mapScrapedToAnalyzerTweets(scraped: ScrapedTweet[]): AnalyzedTweet[] {
   }))
 }
 
+// -------------------- Route Handlers --------------------
+
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const sessionUser = session.user as any
+    // Try to get the username from session, but do NOT require it.
+    const session = await getServerSession(authOptions).catch(() => null)
+    const sessionUser = (session?.user as any) || undefined
     const username: string | null = (sessionUser?.username as string | undefined) || null
 
     const body = (await request.json().catch(() => ({}))) as AnalyzeRequest
@@ -137,55 +163,42 @@ export async function POST(request: NextRequest) {
     const includeReplies = Boolean(body?.includeReplies ?? false)
     const includeRetweets = Boolean(body?.includeRetweets ?? true)
 
-    // If we don't have a username, still complete the flow with a safe analysis.
-    if (!username) {
-      const analysisRaw = await analyzeUserTweets([], "")
-      const analysis = ensureAnalysisCompleteness({
-        ...analysisRaw,
-        userData: { username: null, isVerified: false },
-      })
-      return NextResponse.json({
-        mode: "basic",
-        username: null,
-        reason: "No username on session; returning generic analysis.",
-        options: { maxTweets, includeReplies, includeRetweets },
-        tweetSampleCount: 0,
-        analysis,
-        tweets: [],
-      })
+    // If we have a username, try scraper; else proceed with empty tweets.
+    let tweets: ScrapedTweet[] = []
+    if (username) {
+      try {
+        tweets = await scrapeUserTweets(username, { maxTweets, includeReplies, includeRetweets })
+      } catch {
+        tweets = []
+      }
     }
 
-    // Primary: use the scraper you made.
-    const scrapedTweets = await scrapeUserTweets(username, {
-      maxTweets,
-      includeReplies,
-      includeRetweets,
-    })
-
-    const tweetsForModel: AnalyzedTweet[] = mapScrapedToAnalyzerTweets(scrapedTweets)
-    const analysisRaw = await analyzeUserTweets(tweetsForModel, username)
+    const analysisRaw = await analyzeUserTweets(mapScrapedToModelTweets(tweets), username)
     const analysis = ensureAnalysisCompleteness({
       ...analysisRaw,
       userData: {
-        username,
+        username: username,
         isVerified: (sessionUser?.isVerified as boolean | undefined) ?? undefined,
       },
     })
 
-    return NextResponse.json({
-      mode: scrapedTweets.length > 0 ? "premium" : "basic",
+    const resPayload: AnalysisWrapper = {
+      mode: tweets.length > 0 ? "premium" : "basic",
       username,
+      reason: !username ? "No username available; returning generic analysis." : undefined,
       options: { maxTweets, includeReplies, includeRetweets },
-      tweetSampleCount: scrapedTweets.length,
+      tweetSampleCount: tweets.length,
       analysis,
-      tweets: scrapedTweets.map((t) => ({
+      tweets: tweets.map((t) => ({
         id: t.id,
         text: t.text,
         created_at: t.created_at,
         public_metrics: t.public_metrics,
         referenced_tweets: t.referenced_tweets,
       })),
-    })
+    }
+
+    return NextResponse.json(resPayload)
   } catch (error) {
     return NextResponse.json(
       { error: "Analysis failed", details: error instanceof Error ? error.message : "Unknown error" },
@@ -201,7 +214,7 @@ export async function GET(request: NextRequest) {
     if (action === "health") {
       return NextResponse.json({
         status: "OK",
-        premiumAvailable: true, // Scraper-based (no bearer needed)
+        premiumAvailable: true, // Scraper path always usable (best-effort)
         timestamp: new Date().toISOString(),
       })
     }
@@ -213,3 +226,4 @@ export async function GET(request: NextRequest) {
     )
   }
 }
+ 
