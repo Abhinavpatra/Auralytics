@@ -9,6 +9,9 @@
     "start": "next start"
   },
   "dependencies": {
+    "@ai-sdk/google": "latest",
+    "ai": "latest",
+    "readline": "latest",
     "@auth/core": "latest",
     "@hookform/resolvers": "^3.9.1",
     "@radix-ui/react-accordion": "latest",
