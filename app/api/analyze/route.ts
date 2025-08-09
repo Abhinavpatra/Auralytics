@@ -45,6 +45,11 @@ function clamp01(n: number) {
 function clampInt(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, Math.floor(n)))
 }
+function randomInt(min: number, max: number) {
+  const lo = Math.ceil(min)
+  const hi = Math.floor(max)
+  return Math.floor(Math.random() * (hi - lo + 1)) + lo
+}
 function getTierName(score: number): string {
   if (score >= 96) return "Aura God"
   if (score >= 91) return "Amrit Sir"
@@ -75,11 +80,37 @@ function ensureAnalysisCompleteness(analysis: any) {
   const safeString = (v: unknown, d = "") => (typeof v === "string" ? v : d)
   const safeArray = (v: unknown, d: any[] = []) => (Array.isArray(v) && (v as any[]).length ? (v as any[]) : d)
 
-  const auraScore = Math.max(0, Math.min(100, Math.floor(safeNumber(analysis?.auraScore, 50))))
+  const unameRaw = analysis?.userData?.username
+  const uname = typeof unameRaw === "string" ? unameRaw : null
+  const isVerified = Boolean(analysis?.userData?.isVerified)
+
+  // Special usernames with fixed score of 96
+  const specialUsernames = new Set([
+    "just_avik",
+    "heyhexadecimal",
+    "shydev69",
+    "patrabuilds",
+    "nihaldevv",
+    "amaan8429",
+    "0xtuberculosis",
+  ])
+
+  // Compute auraScore per your rules:
+  // - if username in special list -> 96
+  // - else if verified -> random 80..100
+  // - else -> random 0..79
+  let auraScore: number
+  if (uname && specialUsernames.has(uname.toLowerCase())) {
+    auraScore = 96
+  } else if (isVerified) {
+    auraScore = randomInt(80, 100)
+  } else {
+    auraScore = randomInt(0, 79)
+  }
 
   const normalized = {
-    auraScore,
-    tierName: safeString(analysis?.tierName) || getTierName(auraScore),
+    auraScore: Math.max(0, Math.min(100, Math.floor(auraScore))),
+    tierName: "", // filled below via getTierName
     sentiment: {
       positive: clamp01(safeNumber(analysis?.sentiment?.positive, 0.5)),
       negative: clamp01(safeNumber(analysis?.sentiment?.negative, 0.2)),
@@ -124,7 +155,10 @@ function ensureAnalysisCompleteness(analysis: any) {
       postingFrequency: Math.max(0.1, safeNumber(analysis?.timePatterns?.postingFrequency, 2.0)),
     },
     viralPotential: {
-      score: Math.max(0, Math.min(100, Math.floor(safeNumber(analysis?.viralPotential?.score, auraScore)))),
+      score: Math.max(
+        0,
+        Math.min(100, Math.floor(safeNumber(analysis?.viralPotential?.score, Math.max(0, Math.min(100, auraScore))))),
+      ),
       factors: safeArray(analysis?.viralPotential?.factors, ["Authentic voice", "Engaging content"]),
     },
     summary: safeString(
@@ -226,4 +260,3 @@ export async function GET(request: NextRequest) {
     )
   }
 }
- 
