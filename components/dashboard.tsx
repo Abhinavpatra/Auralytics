@@ -310,7 +310,7 @@ export function Dashboard() {
             <div className="neobrutalist-card p-4 text-right bg-white dark:bg-black">
               {sessionUser?.name ? <div className="font-black text-lg">{sessionUser.name}</div> : null}
               {sessionUser?.username ? (
-                <div className="text-sm font-bold text-black">@{sessionUser.username}</div>
+                <div className="text-sm font-bold text-black dark:text-white">@{sessionUser.username}</div>
               ) : null}
               {isVerified && <div className="text-xs font-bold text-blue-600 mt-1">✓ VERIFIED</div>}
             </div>
