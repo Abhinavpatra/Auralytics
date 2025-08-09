@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useSession, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -100,6 +100,9 @@ export function Dashboard() {
     image?: string
   } | null>(null)
 
+  // Capture root for screenshot without changing layout
+  const captureRef = useRef<HTMLDivElement>(null)
+
   const storageKey = (uname: string) => `auralytics:analysis:${uname}`
   const storageScoreKey = (uname: string) => `auralytics:score:${uname}`
   const storageMetricsKey = (uname: string) => `auralytics:metrics:${uname}`
@@ -171,7 +174,6 @@ export function Dashboard() {
       return { analysis: data.analysis as AnalysisData }
     }
     if (data.engagement && typeof data.engagement === "object") {
-      // Backward compatibility: API returned analysis shape at the top level
       return { analysis: data as AnalysisData }
     }
     return { analysis: null }
@@ -198,20 +200,28 @@ export function Dashboard() {
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ maxTweets: 40, includeReplies: false, includeRetweets: true }),
+        // You can pass options here if needed:
+        // body: JSON.stringify({ maxTweets: 40, includeReplies: false, includeRetweets: true }),
       })
       const data = await response.json()
       console.debug("[analyze] API response:", data)
 
-      const payload = data?.analysis ? data.analysis : data
-      if (payload && payload.engagement) {
-        setAnalysisData(payload)
+      const { analysis } = extractAnalysisFromApiResponse(data)
+      if (analysis && analysis.engagement) {
+        setAnalysisData(analysis)
         setHasAnalyzed(true)
         if (canPersist && uname && userId) {
-          saveAnalysisToStorage(uname, userId, payload)
+          saveAnalysisToStorage(uname, userId, analysis)
         }
       } else {
         console.error("Analysis data incomplete:", data)
+        if (analysis) {
+          setAnalysisData(analysis)
+          setHasAnalyzed(true)
+          if (canPersist && uname && userId) {
+            saveAnalysisToStorage(uname, userId, analysis)
+          }
+        }
       }
     } catch (error) {
       console.error("Analysis failed:", error)
@@ -220,10 +230,37 @@ export function Dashboard() {
     }
   }
 
-  const takeScreenshot = () => {
-    // This function will be used to capture a screenshot of the analysis results
-    // The actual implementation would use a library like html2canvas or similar
-    alert("Screenshot functionality will be implemented here. This will capture the analysis results.")
+  // Actual screenshot logic (dynamic import keeps SSR safe and bundle lean)
+  const takeScreenshot = async () => {
+    try {
+      if (!captureRef.current) return
+      const html2canvas = (await import("html2canvas")).default
+      const element = captureRef.current
+
+      // Use devicePixelRatio for crisp output; clamp for file size
+      const scale = Math.min(2, window.devicePixelRatio || 1)
+
+      const canvas = await html2canvas(element, {
+        backgroundColor: null, // preserve theme background
+        useCORS: true,
+        allowTaint: false,
+        logging: false,
+        scale,
+        windowWidth: document.documentElement.scrollWidth,
+        windowHeight: document.documentElement.scrollHeight,
+      })
+
+      const dataUrl = canvas.toDataURL("image/png")
+      const a = document.createElement("a")
+      a.href = dataUrl
+      const date = new Date().toISOString().slice(0, 10)
+      a.download = `aura-analysis-${date}.png`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+    } catch (err) {
+      console.error("Screenshot failed:", err)
+    }
   }
 
   const getTierColor = (score: number) => {
@@ -249,7 +286,7 @@ export function Dashboard() {
     typeof knownTweetCount === "number" ? (knownTweetCount >= 3000 ? "POWER USER" : "STANDARD") : undefined
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div ref={captureRef} className="min-h-screen bg-background text-foreground">
       {/* Background Pattern */}
       <div className="absolute inset-0 dots-pattern opacity-30" />
 
