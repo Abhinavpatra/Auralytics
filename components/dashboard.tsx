@@ -310,7 +310,7 @@ export function Dashboard() {
             <div className="neobrutalist-card p-4 text-right bg-white dark:bg-black">
               {sessionUser?.name ? <div className="font-black text-lg">{sessionUser.name}</div> : null}
               {sessionUser?.username ? (
-                <div className="text-sm font-bold text-muted-foreground">@{sessionUser.username}</div>
+                <div className="text-sm font-bold text-black">@{sessionUser.username}</div>
               ) : null}
               {isVerified && <div className="text-xs font-bold text-blue-600 mt-1">✓ VERIFIED</div>}
             </div>
@@ -372,8 +372,7 @@ export function Dashboard() {
                   <div className="flex items-center gap-2">
                     <div className="text-yellow-800 font-bold">⚠️ DEMO ANALYSIS</div>
                     <div className="text-yellow-700 text-sm">
-                      This is a demo analysis with realistic metrics based on your profile. Get verified to unlock real
-                      AI-powered analysis of your tweets!
+                      This is a demo analysis with realistic metrics based on your profile. Have a verified X account to unlock, analysis of your tweets!
                     </div>
                   </div>
                 </div>
