@@ -38,7 +38,6 @@ export function useVisitorCount() {
         setCount(118)
       }
     }
-
     incrementAndGetCount()
   }, [])
 
